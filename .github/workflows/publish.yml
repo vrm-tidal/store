@@ -1,0 +1,53 @@
+name: Publish store
+
+on:
+  repository_dispatch:
+    types: [plugin-released]
+  push:
+    branches: [main]
+    paths: [store.config.json, .github/workflows/publish.yml]
+  workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Collect plugins and publish the store
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out store.config.json
+        uses: actions/checkout@v7
+
+      - name: Download the latest release of each plugin repo
+        run: |
+          for repo in $(jq -r '.repos[]' store.config.json); do
+            gh release download latest --repo "$repo" --dir "releases/$repo"
+          done
+
+      - name: Copy the plugin files
+        run: |
+          mkdir dist
+          for release in releases/*/*; do
+            for plugin in $(jq -r '.plugins[]' "$release/store.json"); do
+              name="${plugin%.mjs}"
+              cp "$release/$name.mjs" "$release/$name.mjs.map" "$release/$name.json" dist/
+            done
+          done
+
+      - name: Write store.json
+        run: |
+          plugins=$(jq -sc '[.[].plugins[]]' releases/*/*/store.json)
+          jq --argjson plugins "$plugins" 'del(.repos) + { plugins: $plugins }' store.config.json > dist/store.json
+          cat dist/store.json
+
+      - name: Publish as the "latest" release
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest dist/* --title "Latest" --notes "Store with: $(jq -r '.plugins | join(", ")' dist/store.json)" --target "$GITHUB_SHA"

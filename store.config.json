@@ -1,0 +1,11 @@
+{
+	"name": "vrm-tidal",
+	"description": "This store brings monthly listening statistics!",
+	"author": {
+		"name": "marekvonrogall",
+		"url": "https://github.com/marekvonrogall",
+		"avatarUrl": "https://avatars.githubusercontent.com/u/110893394"
+	},
+	"homepage": "https://github.com/vrm-tidal/store",
+	"repos": ["vrm-tidal/activity"]
+}
